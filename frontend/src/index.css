@@ -1,0 +1,120 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    @apply bg-navy-900 text-slate-100 font-sans antialiased;
+    min-height: 100vh;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-navy-800;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-navy-600 rounded-full;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-primary-500;
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply bg-navy-700/50 backdrop-blur-sm border border-white/5 rounded-2xl;
+  }
+
+  .btn-primary {
+    @apply bg-primary-500 hover:bg-primary-600 text-white font-semibold px-4 py-2 rounded-lg
+           transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-secondary {
+    @apply bg-navy-600 text-slate-200 font-medium px-4 py-2 rounded-lg
+           transition-all duration-200 active:scale-95 border border-white/10;
+  }
+  .btn-secondary:hover {
+    background-color: #475569;
+  }
+
+  .btn-danger {
+    @apply bg-red-500/20 text-red-400 font-medium px-4 py-2 rounded-lg
+           transition-all duration-200 active:scale-95 border border-red-500/20;
+  }
+  .btn-danger:hover {
+    background-color: rgba(244, 63, 94, 0.3);
+  }
+
+  .input-field {
+    @apply w-full bg-navy-800 border border-white/10 text-slate-100 placeholder-slate-500
+           rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary-500/50
+           focus:border-primary-500 transition-all duration-200;
+  }
+
+  .label {
+    @apply block text-sm font-medium text-slate-300 mb-1.5;
+  }
+
+  .badge {
+    @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold;
+  }
+
+  .badge-todo {
+    @apply badge bg-slate-700 text-slate-300;
+  }
+
+  .badge-in-progress {
+    @apply badge bg-amber-500/20 text-amber-400 border border-amber-500/30;
+  }
+
+  .badge-completed {
+    @apply badge bg-emerald-500/20 text-emerald-400 border border-emerald-500/30;
+  }
+
+  .badge-overdue {
+    @apply badge bg-red-500/20 text-red-400 border border-red-500/30;
+  }
+
+  .badge-high {
+    @apply badge bg-red-500/20 text-red-400;
+  }
+
+  .badge-medium {
+    @apply badge bg-amber-500/20 text-amber-400;
+  }
+
+  .badge-low {
+    @apply badge bg-emerald-500/20 text-emerald-400;
+  }
+
+  .sidebar-link {
+    @apply flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 font-medium text-sm
+           hover:text-white hover:bg-white/5 transition-all duration-200 cursor-pointer;
+  }
+
+  .sidebar-link.active {
+    @apply bg-primary-500/20 text-primary-400 border border-primary-500/20;
+  }
+
+  .modal-overlay {
+    @apply fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4;
+  }
+
+  .modal-content {
+    @apply glass-card w-full max-w-lg p-6 shadow-2xl animate-slide-up;
+  }
+
+  .stat-card {
+    @apply glass-card p-6 hover:border-white/10 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl;
+  }
+}
