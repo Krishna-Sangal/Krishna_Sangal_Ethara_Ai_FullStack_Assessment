@@ -5,12 +5,19 @@ const { generateToken } = require('../utils/generateToken');
 // @route   POST /api/auth/register
 const register = async (req, res, next) => {
   try {
-    const { name, email, password, role } = req.body;
+    const { name, email, password, adminCode } = req.body;
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(400).json({ success: false, message: 'Email already in use' });
     }
-    const user = await User.create({ name, email, password, role: role || 'member' });
+    if (adminCode && !process.env.ADMIN_REGISTRATION_CODE) {
+      return res.status(400).json({ success: false, message: 'Admin registration is not configured' });
+    }
+    if (adminCode && adminCode !== process.env.ADMIN_REGISTRATION_CODE) {
+      return res.status(403).json({ success: false, message: 'Invalid admin setup code' });
+    }
+    const role = adminCode ? 'admin' : 'member';
+    const user = await User.create({ name, email, password, role });
     const token = generateToken(user._id);
     res.status(201).json({ success: true, token, user });
   } catch (err) {
@@ -27,6 +34,9 @@ const login = async (req, res, next) => {
     if (!user || !(await user.comparePassword(password))) {
       return res.status(401).json({ success: false, message: 'Invalid email or password' });
     }
+    if (!user.isActive) {
+      return res.status(403).json({ success: false, message: 'User account is inactive' });
+    }
     const token = generateToken(user._id);
     user.password = undefined;
     res.json({ success: true, token, user });
@@ -39,6 +49,12 @@ const login = async (req, res, next) => {
 // @route   GET /api/auth/me
 const getMe = async (req, res) => {
   res.json({ success: true, user: req.user });
+};
+
+// @desc    Logout user
+// @route   POST /api/auth/logout
+const logout = async (req, res) => {
+  res.json({ success: true, message: 'Logged out successfully' });
 };
 
 // @desc    Update profile
@@ -74,4 +90,4 @@ const changePassword = async (req, res, next) => {
   }
 };
 
-module.exports = { register, login, getMe, updateProfile, changePassword };
+module.exports = { register, login, logout, getMe, updateProfile, changePassword };

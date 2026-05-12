@@ -1,6 +1,10 @@
 const Project = require('../models/Project');
 const Task = require('../models/Task');
 const Notification = require('../models/Notification');
+const User = require('../models/User');
+
+const isProjectMember = (project, userId) =>
+  project.owner.equals(userId) || project.members.some((memberId) => memberId.equals(userId));
 
 // @desc    Get all projects (admin: all, member: joined)
 // @route   GET /api/projects
@@ -33,14 +37,22 @@ const getProjects = async (req, res, next) => {
 const createProject = async (req, res, next) => {
   try {
     const { title, description, color, dueDate, members } = req.body;
+    const memberIds = Array.isArray(members) ? [...new Set(members.map(String))] : [];
+    if (memberIds.length) {
+      const foundMembers = await User.find({ _id: { $in: memberIds }, isActive: true }).select('_id');
+      if (foundMembers.length !== memberIds.length) {
+        return res.status(400).json({ success: false, message: 'One or more project members are invalid' });
+      }
+    }
     const project = await Project.create({
       title,
       description,
       color: color || '#6366F1',
       dueDate,
       owner: req.user._id,
-      members: members || [],
+      members: memberIds,
     });
+    await User.updateMany({ _id: { $in: [req.user._id, ...memberIds] } }, { $addToSet: { projects: project._id } });
     await project.populate('owner', 'name email avatar');
     await project.populate('members', 'name email avatar');
     res.status(201).json({ success: true, project });
@@ -75,7 +87,11 @@ const getProject = async (req, res, next) => {
 // @route   PUT /api/projects/:id
 const updateProject = async (req, res, next) => {
   try {
-    const project = await Project.findByIdAndUpdate(req.params.id, req.body, {
+    const allowedUpdates = ['title', 'description', 'color', 'status', 'dueDate'];
+    const updates = Object.fromEntries(
+      Object.entries(req.body).filter(([key]) => allowedUpdates.includes(key))
+    );
+    const project = await Project.findByIdAndUpdate(req.params.id, updates, {
       new: true,
       runValidators: true,
     })
@@ -95,6 +111,7 @@ const deleteProject = async (req, res, next) => {
     const project = await Project.findById(req.params.id);
     if (!project) return res.status(404).json({ success: false, message: 'Project not found' });
     await Task.deleteMany({ project: project._id });
+    await User.updateMany({ projects: project._id }, { $pull: { projects: project._id } });
     await project.deleteOne();
     res.json({ success: true, message: 'Project and all tasks deleted' });
   } catch (err) {
@@ -109,11 +126,14 @@ const addMember = async (req, res, next) => {
     const { userId } = req.body;
     const project = await Project.findById(req.params.id);
     if (!project) return res.status(404).json({ success: false, message: 'Project not found' });
-    if (project.members.includes(userId)) {
+    const user = await User.findOne({ _id: userId, isActive: true }).select('_id');
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+    if (isProjectMember(project, userId)) {
       return res.status(400).json({ success: false, message: 'User is already a member' });
     }
     project.members.push(userId);
     await project.save();
+    await User.findByIdAndUpdate(userId, { $addToSet: { projects: project._id } });
     await project.populate('members', 'name email avatar');
     await Notification.create({
       user: userId,
@@ -133,8 +153,12 @@ const removeMember = async (req, res, next) => {
   try {
     const project = await Project.findById(req.params.id);
     if (!project) return res.status(404).json({ success: false, message: 'Project not found' });
+    if (project.owner.equals(req.params.userId)) {
+      return res.status(400).json({ success: false, message: 'Cannot remove the project owner' });
+    }
     project.members = project.members.filter((m) => !m.equals(req.params.userId));
     await project.save();
+    await User.findByIdAndUpdate(req.params.userId, { $pull: { projects: project._id } });
     await project.populate('members', 'name email avatar');
     res.json({ success: true, project });
   } catch (err) {

@@ -12,12 +12,10 @@ const getDashboardStats = async (req, res, next) => {
     let taskFilter = {};
 
     if (!isAdmin) {
-      const memberProjects = await Project.find({
-        $or: [{ members: req.user._id }, { owner: req.user._id }],
-      }).select('_id');
-      const projectIds = memberProjects.map((p) => p._id);
+      taskFilter.assignee = req.user._id;
+      const assignedProjectIds = await Task.distinct('project', taskFilter);
+      const projectIds = assignedProjectIds.filter(Boolean);
       projectFilter._id = { $in: projectIds };
-      taskFilter.project = { $in: projectIds };
     }
 
     const [totalProjects, totalTasks, completedTasks, inProgressTasks, totalUsers] =

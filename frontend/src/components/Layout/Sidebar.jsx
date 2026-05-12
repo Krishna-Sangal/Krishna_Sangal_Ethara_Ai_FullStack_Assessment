@@ -15,6 +15,7 @@ import {
 import { HiOutlineClipboardList } from 'react-icons/hi';
 import useAuthStore from '../../store/authStore';
 import toast from 'react-hot-toast';
+import api from '../../api/axios';
 
 const navItems = [
   { to: '/dashboard', icon: HiChartBar, label: 'Dashboard' },
@@ -29,7 +30,10 @@ export default function Sidebar({ collapsed, setCollapsed }) {
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await api.post('/auth/logout');
+    } catch {}
     logout();
     toast.success('Signed out successfully');
     navigate('/auth');

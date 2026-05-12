@@ -31,14 +31,12 @@ export default function Tasks() {
       if (statusFilter !== 'all') params.set('status', statusFilter);
       if (priorityFilter !== 'all') params.set('priority', priorityFilter);
       if (search) params.set('search', search);
-      const [taskRes, userRes, projRes] = await Promise.all([
-        api.get(`/tasks?${params}`),
-        api.get('/users'),
-        api.get('/projects'),
-      ]);
+      const requests = [api.get(`/tasks?${params}`), api.get('/projects')];
+      if (isAdmin) requests.push(api.get('/users'));
+      const [taskRes, projRes, userRes] = await Promise.all(requests);
       setTasks(taskRes.data.tasks);
-      setAllUsers(userRes.data.users);
       setProjects(projRes.data.projects);
+      if (isAdmin) setAllUsers(userRes.data.users);
     } catch { toast.error('Failed to load tasks'); }
     finally { setLoading(false); }
   };

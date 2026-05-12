@@ -6,8 +6,8 @@ const router = express.Router();
 
 router.use(protect);
 
-router.get('/', getUsers);
-router.get('/:id', getUser);
+router.get('/', adminOnly, getUsers);
+router.get('/:id', adminOnly, getUser);
 router.put('/:id/role', adminOnly, updateUserRole);
 router.delete('/:id', adminOnly, deactivateUser);
 

@@ -1,6 +1,15 @@
 const Task = require('../models/Task');
 const Project = require('../models/Project');
 const Notification = require('../models/Notification');
+const User = require('../models/User');
+
+const canAccessTask = async (task, user) => {
+  if (user.role === 'admin') return true;
+  return task.assignee?.equals(user._id);
+};
+
+const isProjectMember = (project, userId) =>
+  project.owner.equals(userId) || project.members.some((memberId) => memberId.equals(userId));
 
 // @desc    Get tasks (with filters)
 // @route   GET /api/tasks
@@ -9,17 +18,12 @@ const getTasks = async (req, res, next) => {
     const { project, status, priority, assignee, search } = req.query;
     let filter = {};
 
-    if (req.user.role === 'member') {
-      // Members see tasks in their projects or assigned to them
-      const memberProjects = await Project.find({ members: req.user._id }).select('_id');
-      const projectIds = memberProjects.map((p) => p._id);
-      filter.$or = [{ assignee: req.user._id }, { project: { $in: projectIds } }];
-    }
+    if (req.user.role === 'member') filter.assignee = req.user._id;
 
     if (project) filter.project = project;
     if (status) filter.status = status;
     if (priority) filter.priority = priority;
-    if (assignee) filter.assignee = assignee;
+    if (assignee && req.user.role === 'admin') filter.assignee = assignee;
     if (search) filter.title = { $regex: search, $options: 'i' };
 
     const tasks = await Task.find(filter)
@@ -43,6 +47,13 @@ const createTask = async (req, res, next) => {
     // Verify project exists
     const proj = await Project.findById(project);
     if (!proj) return res.status(404).json({ success: false, message: 'Project not found' });
+    if (assignee) {
+      const assignedUser = await User.findOne({ _id: assignee, isActive: true }).select('_id');
+      if (!assignedUser) return res.status(400).json({ success: false, message: 'Assignee is invalid' });
+      if (!isProjectMember(proj, assignee)) {
+        return res.status(400).json({ success: false, message: 'Assignee must belong to the project' });
+      }
+    }
 
     const task = await Task.create({
       title,
@@ -87,6 +98,9 @@ const getTask = async (req, res, next) => {
       .populate('comments.author', 'name email avatar');
 
     if (!task) return res.status(404).json({ success: false, message: 'Task not found' });
+    if (!(await canAccessTask(task, req.user))) {
+      return res.status(403).json({ success: false, message: 'Access denied' });
+    }
     res.json({ success: true, task });
   } catch (err) {
     next(err);
@@ -103,7 +117,11 @@ const updateTask = async (req, res, next) => {
     // Members can only update status
     if (req.user.role === 'member') {
       const { status } = req.body;
-      if (!status) {
+      if (!task.assignee?.equals(req.user._id)) {
+        return res.status(403).json({ success: false, message: 'Access denied' });
+      }
+      const extraFields = Object.keys(req.body).filter((key) => key !== 'status');
+      if (!status || extraFields.length > 0) {
         return res.status(403).json({ success: false, message: 'Members can only update task status' });
       }
       task.status = status;
@@ -120,6 +138,14 @@ const updateTask = async (req, res, next) => {
     } else {
       // Admin can update all fields
       const { title, description, assignee, priority, dueDate, status, tags, order } = req.body;
+      if (assignee) {
+        const project = await Project.findById(task.project);
+        const assignedUser = await User.findOne({ _id: assignee, isActive: true }).select('_id');
+        if (!assignedUser) return res.status(400).json({ success: false, message: 'Assignee is invalid' });
+        if (!isProjectMember(project, assignee)) {
+          return res.status(400).json({ success: false, message: 'Assignee must belong to the project' });
+        }
+      }
       if (title) task.title = title;
       if (description !== undefined) task.description = description;
       if (assignee !== undefined) task.assignee = assignee || null;
@@ -161,6 +187,9 @@ const addComment = async (req, res, next) => {
     const { text } = req.body;
     const task = await Task.findById(req.params.id);
     if (!task) return res.status(404).json({ success: false, message: 'Task not found' });
+    if (!(await canAccessTask(task, req.user))) {
+      return res.status(403).json({ success: false, message: 'Access denied' });
+    }
 
     task.comments.push({ author: req.user._id, text });
     await task.save();
@@ -188,8 +217,11 @@ const addComment = async (req, res, next) => {
 const reorderTasks = async (req, res, next) => {
   try {
     const { tasks } = req.body; // [{id, order, status}]
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Admin access required' });
+    }
     const updates = tasks.map(({ id, order, status }) =>
-      Task.findByIdAndUpdate(id, { order, status })
+      Task.findByIdAndUpdate(id, { order, status }, { runValidators: true })
     );
     await Promise.all(updates);
     res.json({ success: true, message: 'Tasks reordered' });

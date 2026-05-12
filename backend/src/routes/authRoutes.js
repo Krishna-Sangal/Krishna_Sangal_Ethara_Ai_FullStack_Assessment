@@ -1,6 +1,6 @@
 const express = require('express');
 const { body } = require('express-validator');
-const { register, login, getMe, updateProfile, changePassword } = require('../controllers/authController');
+const { register, login, logout, getMe, updateProfile, changePassword } = require('../controllers/authController');
 const { protect } = require('../middleware/authMiddleware');
 const validate = require('../middleware/validate');
 
@@ -18,7 +18,7 @@ router.post(
       .withMessage('Password must contain at least one uppercase letter')
       .matches(/[0-9]/)
       .withMessage('Password must contain at least one number'),
-    body('role').optional().isIn(['admin', 'member']).withMessage('Role must be admin or member'),
+    body('adminCode').optional({ values: 'falsy' }).isLength({ max: 128 }).withMessage('Admin code is too long'),
   ],
   validate,
   register
@@ -35,6 +35,7 @@ router.post(
 );
 
 router.get('/me', protect, getMe);
+router.post('/logout', protect, logout);
 router.put('/profile', protect, updateProfile);
 router.put(
   '/change-password',

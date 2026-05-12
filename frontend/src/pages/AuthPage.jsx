@@ -12,7 +12,7 @@ export default function AuthPage() {
   const [loading, setLoading] = useState(false);
   const { setAuth } = useAuthStore();
 
-  const [form, setForm] = useState({ name: '', email: '', password: '', role: 'member' });
+  const [form, setForm] = useState({ name: '', email: '', password: '', adminCode: '' });
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
@@ -144,19 +144,17 @@ export default function AuthPage() {
                 </div>
               </div>
 
-              {/* Role (signup only) */}
               {mode === 'signup' && (
                 <div>
-                  <label className="label">Role</label>
-                  <select
-                    name="role"
-                    value={form.role}
+                  <label className="label">Admin Setup Code</label>
+                  <input
+                    name="adminCode"
+                    value={form.adminCode}
                     onChange={handleChange}
+                    placeholder="Optional"
                     className="input-field"
-                  >
-                    <option value="member">Member</option>
-                    <option value="admin">Admin</option>
-                  </select>
+                    maxLength={128}
+                  />
                 </div>
               )}
 

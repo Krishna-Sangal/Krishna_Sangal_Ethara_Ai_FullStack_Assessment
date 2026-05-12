@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { motion } from 'framer-motion';
-import { HiPlus, HiArrowLeft, HiTrash, HiClock, HiChatBubbleLeft, HiPencil } from 'react-icons/hi2';
+import { HiPlus, HiArrowLeft, HiTrash, HiClock, HiChatBubbleLeft, HiPencil, HiUserPlus, HiXMark } from 'react-icons/hi2';
 import { format, isPast } from 'date-fns';
 import toast from 'react-hot-toast';
 import api from '../api/axios';
@@ -150,17 +150,19 @@ export default function ProjectDetail() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [viewTask, setViewTask] = useState(null);
   const [allUsers, setAllUsers] = useState([]);
+  const [memberToAdd, setMemberToAdd] = useState('');
 
   const fetchData = async () => {
     try {
-      const [projRes, taskRes, usersRes] = await Promise.all([
+      const requests = [
         api.get(`/projects/${id}`),
         api.get(`/tasks?project=${id}`),
-        api.get('/users'),
-      ]);
+      ];
+      if (isAdmin) requests.push(api.get('/users'));
+      const [projRes, taskRes, usersRes] = await Promise.all(requests);
       setProject(projRes.data.project);
       setTasks(taskRes.data.tasks);
-      setAllUsers(usersRes.data.users);
+      if (isAdmin) setAllUsers(usersRes.data.users);
     } catch { toast.error('Failed to load project'); }
     finally { setLoading(false); }
   };
@@ -202,6 +204,32 @@ export default function ProjectDetail() {
     } catch { toast.error('Failed to add comment'); }
   };
 
+  const handleAddMember = async () => {
+    if (!memberToAdd) return;
+    try {
+      const { data } = await api.post(`/projects/${id}/members`, { userId: memberToAdd });
+      setProject(data.project);
+      setMemberToAdd('');
+      toast.success('Member added');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to add member');
+    }
+  };
+
+  const handleRemoveMember = async (memberId) => {
+    try {
+      const { data } = await api.delete(`/projects/${id}/members/${memberId}`);
+      setProject(data.project);
+      toast.success('Member removed');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to remove member');
+    }
+  };
+
+  const availableUsers = allUsers.filter((u) =>
+    u._id !== project?.owner?._id && !project?.members?.some((m) => m._id === u._id)
+  );
+
   if (loading) return <div className="flex justify-center py-20"><div className="w-10 h-10 border-4 border-primary-500/30 border-t-primary-500 rounded-full animate-spin" /></div>;
 
   return (
@@ -232,6 +260,36 @@ export default function ProjectDetail() {
           )}
         </div>
       </div>
+
+      {isAdmin && (
+        <div className="glass-card p-4">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <h3 className="text-sm font-semibold text-white">Project Members</h3>
+              <p className="text-xs text-slate-500 mt-1">{project?.members?.length || 0} member{project?.members?.length === 1 ? '' : 's'}</p>
+            </div>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <select value={memberToAdd} onChange={(e) => setMemberToAdd(e.target.value)} className="input-field h-10 text-sm min-w-48">
+                <option value="">Select a member</option>
+                {availableUsers.map((u) => <option key={u._id} value={u._id}>{u.name}</option>)}
+              </select>
+              <button onClick={handleAddMember} disabled={!memberToAdd} className="btn-primary h-10 flex items-center justify-center gap-2">
+                <HiUserPlus className="w-4 h-4" />Add Member
+              </button>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2 mt-4">
+            {project?.members?.map((m) => (
+              <span key={m._id} className="inline-flex items-center gap-2 rounded-lg bg-navy-700 px-3 py-1.5 text-xs text-slate-200">
+                {m.name}
+                <button onClick={() => handleRemoveMember(m._id)} className="text-slate-500 hover:text-red-400">
+                  <HiXMark className="w-3.5 h-3.5" />
+                </button>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       <DragDropContext onDragEnd={handleDragEnd}>
         <div className="flex gap-5 overflow-x-auto pb-4">
