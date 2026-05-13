@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { HiUserGroup, HiShieldCheck, HiUser, HiTrash } from 'react-icons/hi2';
 import toast from 'react-hot-toast';
 import api from '../api/axios';
@@ -8,20 +9,33 @@ import ConfirmModal from '../components/modals/ConfirmModal';
 
 export default function Team() {
   const { user } = useAuthStore();
+  const navigate = useNavigate();
   const isAdmin = user?.role === 'admin';
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [deleteTarget, setDeleteTarget] = useState(null);
 
   const fetchUsers = async () => {
+    if (!isAdmin) {
+      setLoading(false);
+      navigate('/dashboard', { replace: true });
+      return;
+    }
+
     try {
       const { data } = await api.get('/users');
       setUsers(data.users);
-    } catch { toast.error('Failed to load team'); }
+    } catch (err) {
+      if (err.response?.status === 403) {
+        navigate('/dashboard', { replace: true });
+        return;
+      }
+      toast.error('Failed to load team');
+    }
     finally { setLoading(false); }
   };
 
-  useEffect(() => { fetchUsers(); }, []);
+  useEffect(() => { fetchUsers(); }, [isAdmin]);
 
   const handleRoleChange = async (userId, role) => {
     try {

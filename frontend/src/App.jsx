@@ -21,6 +21,11 @@ const PublicRoute = ({ children }) => {
   return !isAuthenticated ? children : <Navigate to="/dashboard" replace />;
 };
 
+const AdminRoute = ({ children }) => {
+  const { user } = useAuthStore();
+  return user?.role === 'admin' ? children : <Navigate to="/dashboard" replace />;
+};
+
 export default function App() {
   return (
     <Routes>
@@ -45,7 +50,7 @@ export default function App() {
         <Route path="projects" element={<Projects />} />
         <Route path="projects/:id" element={<ProjectDetail />} />
         <Route path="tasks" element={<Tasks />} />
-        <Route path="team" element={<Team />} />
+        <Route path="team" element={<AdminRoute><Team /></AdminRoute>} />
         <Route path="notifications" element={<Notifications />} />
         <Route path="profile" element={<Profile />} />
       </Route>

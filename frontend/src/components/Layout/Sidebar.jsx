@@ -21,7 +21,7 @@ const navItems = [
   { to: '/dashboard', icon: HiChartBar, label: 'Dashboard' },
   { to: '/projects', icon: HiFolderOpen, label: 'Projects' },
   { to: '/tasks', icon: HiOutlineClipboardList, label: 'Tasks' },
-  { to: '/team', icon: HiUserGroup, label: 'Team' },
+  { to: '/team', icon: HiUserGroup, label: 'Team', adminOnly: true },
   { to: '/notifications', icon: HiBell, label: 'Notifications' },
   { to: '/profile', icon: HiUser, label: 'Profile' },
 ];
@@ -67,7 +67,9 @@ export default function Sidebar({ collapsed, setCollapsed }) {
 
       {/* Nav */}
       <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-        {navItems.map(({ to, icon: Icon, label }) => (
+        {navItems
+          .filter((item) => !item.adminOnly || user?.role === 'admin')
+          .map(({ to, icon: Icon, label }) => (
           <NavLink
             key={to}
             to={to}
