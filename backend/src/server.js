@@ -87,10 +87,18 @@ const connectWithRetry = (retries = 5) => {
     });
 };
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
   console.log(`📋 Health check: http://localhost:${PORT}/api/health`);
   connectWithRetry();
+});
+
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`Port ${PORT} is already in use. Set PORT in backend/.env to an available port.`);
+    process.exit(1);
+  }
+  throw err;
 });
 
 // Handle unhandled promise rejections
